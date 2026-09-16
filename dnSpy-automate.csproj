@@ -14,6 +14,11 @@
     <AssemblyName>dnSpy-automate.x</AssemblyName>
     <RootNamespace>dnSpyAutomate</RootNamespace>
 
+    <!-- Keep the build machine out of the shipped binary. Without this the PE debug directory
+         carries the absolute path of the .pdb, so every released DLL would publish whatever
+         directory it happened to be built in. -->
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+
     <!-- Copy NuGet dependencies (NetMQ + AsyncIO + NaCl) into the build output so
          build-install.ps1 and the Package target can ship them. Everything else is
          compile-only and stays out of the output. -->
