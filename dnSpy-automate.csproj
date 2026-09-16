@@ -1,0 +1,152 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- dnSpy ships both a net48 and a net10.0-windows build. This targets the net10 one,
+         matching the dnSpyEx build the vendored contracts in lib/ come from. Multi-targeting
+         net48;net10.0-windows is deferred until a net48 dnSpy is available to test against. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!-- dnSpy only discovers extension assemblies named *.x.dll. -->
+    <AssemblyName>dnSpy-automate.x</AssemblyName>
+    <RootNamespace>dnSpyAutomate</RootNamespace>
+
+    <!-- Copy NuGet dependencies (NetMQ + AsyncIO + NaCl) into the build output so
+         build-install.ps1 and the Package target can ship them. Everything else is
+         compile-only and stays out of the output. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+    <!-- Microsoft.VisualStudio.CoreUtility 15.0.x predates netstandard and ships net45
+         assets only. It is a compile-time reference (see below), never shipped, so falling
+         back to its .NET Framework asset is safe; NU1701 is the expected warning. -->
+    <AssetTargetFallback>$(AssetTargetFallback);net48</AssetTargetFallback>
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
+
+    <!-- Where the dnSpy contract assemblies are compiled against. Building needs no dnSpy
+         installation: it defaults to the copies vendored in lib/ (see lib/NOTICE). Point it
+         at another dnSpy to build against a different version, in precedence order:
+             dotnet build -p:DnSpyContractsDir=C:\path\to\dnSpy\bin
+             dotnet build -p:DnSpyBinDir=C:\path\to\dnSpy\bin      (build-install.ps1 uses this)
+             $env:DNSPY_BIN_DIR = 'C:\path\to\dnSpy\bin'
+         Only the five dnSpy.Contracts.* assemblies are read from here; every other
+         reference comes from NuGet, pinned to the exact AssemblyVersion dnSpy 6.6.0 loads. -->
+    <DnSpyContractsDir Condition="'$(DnSpyContractsDir)' == ''">$(DnSpyBinDir)</DnSpyContractsDir>
+    <DnSpyContractsDir Condition="'$(DnSpyContractsDir)' == ''">$(DNSPY_BIN_DIR)</DnSpyContractsDir>
+    <DnSpyContractsDir Condition="'$(DnSpyContractsDir)' == ''">$(MSBuildThisFileDirectory)lib</DnSpyContractsDir>
+
+    <!-- Staging directory for the Package target: exactly what gets copied into
+         <dnSpy>\bin\Extensions\dnSpy-automate\. -->
+    <PackageStageDir>$(MSBuildThisFileDirectory)artifacts\dnSpy-automate\</PackageStageDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- dnSpy's own contract assemblies. No NuGet package exists for these, so they are
+         vendored in lib/. Private=false: dnSpy loads its own copies at run time, and
+         shipping a duplicate risks a conflicting assembly load. DnSpyContract=true marks
+         them for the ValidateDnSpyContracts guard below. -->
+    <Reference Include="dnSpy.Contracts.DnSpy">
+      <HintPath>$(DnSpyContractsDir)\dnSpy.Contracts.DnSpy.dll</HintPath>
+      <Private>false</Private>
+      <DnSpyContract>true</DnSpyContract>
+    </Reference>
+    <Reference Include="dnSpy.Contracts.Logic">
+      <HintPath>$(DnSpyContractsDir)\dnSpy.Contracts.Logic.dll</HintPath>
+      <Private>false</Private>
+      <DnSpyContract>true</DnSpyContract>
+    </Reference>
+    <!-- Managed debugger contracts. -->
+    <Reference Include="dnSpy.Contracts.Debugger">
+      <HintPath>$(DnSpyContractsDir)\dnSpy.Contracts.Debugger.dll</HintPath>
+      <Private>false</Private>
+      <DnSpyContract>true</DnSpyContract>
+    </Reference>
+    <Reference Include="dnSpy.Contracts.Debugger.DotNet">
+      <HintPath>$(DnSpyContractsDir)\dnSpy.Contracts.Debugger.DotNet.dll</HintPath>
+      <Private>false</Private>
+      <DnSpyContract>true</DnSpyContract>
+    </Reference>
+    <Reference Include="dnSpy.Contracts.Debugger.DotNet.CorDebug">
+      <HintPath>$(DnSpyContractsDir)\dnSpy.Contracts.Debugger.DotNet.CorDebug.dll</HintPath>
+      <Private>false</Private>
+      <DnSpyContract>true</DnSpyContract>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Compile-time only. dnSpy ships and loads all of these itself, so ExcludeAssets=runtime
+         keeps them out of our output and out of dnSpy-automate.x.deps.json; the extension
+         binds to dnSpy's copies at run time. Versions are pinned to the exact AssemblyVersion
+         dnSpy 6.6.0 loads, so the references resolve against it without a binding shim:
+             dnlib                              4.5.0.0
+             MessagePack(.Annotations)          2.5.0.0
+             Microsoft.CodeAnalysis(.CSharp)    5.3.0.0   (Roslyn, for EDIT_METHOD_CSHARP)
+             Microsoft.VisualStudio.CoreUtility 15.0.0.0
+             System.ComponentModel.Composition  10.0.0.9  (MEF, for [Export]/[Import])
+         Bumping one past what dnSpy ships breaks the load: .NET resolves a reference against
+         an already-loaded assembly only when the loaded version is >= the referenced one. -->
+    <PackageReference Include="dnlib" Version="4.5.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="MessagePack" Version="2.5.192" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="System.ComponentModel.Composition" Version="10.0.9" ExcludeAssets="runtime" PrivateAssets="all" />
+    <!-- IContentType appears in IOutputService.Create's overload set; the compiler needs it
+         to resolve the call even though we pass a content-type string. -->
+    <PackageReference Include="Microsoft.VisualStudio.CoreUtility" Version="15.0.26606" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Pure-managed ZeroMQ, and the only dependency that actually ships. NetMQ pulls in
+         AsyncIO, NaCl and a System.ServiceModel.* / Microsoft.Extensions.ObjectPool closure;
+         all of it is copied to our output and must be installed alongside the extension
+         (dnSpy does NOT ship any of it). -->
+    <PackageReference Include="NetMQ" Version="4.0.1.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MessagePack 2.5.192 carries open advisories, and NuGet audit flags it. It is pinned
+         deliberately: it is the copy dnSpy 6.6.0 loads, and this project only compiles
+         against it - ExcludeAssets=runtime means no MessagePack.dll is produced or shipped,
+         so nothing here can change which copy is exposed at run time. Moving to a patched
+         version would only mean compiling against a surface dnSpy's copy may not have.
+         Suppressed per advisory rather than with NoWarn so NetMQ - the one dependency that
+         actually ships - stays audited. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2f33-pr97-265q" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2x83-8g95-xh59" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-cj9g-3mj2-g8vv" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-cxmj-83gh-fp49" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-hv8m-jj95-wg3x" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-q2h6-ghwm-5qm8" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-qhmf-xw27-6rqr" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-v72x-2h86-7f8m" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-vh6j-jc39-fggf" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-w567-gjr2-hm5j" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-wfr3-xj75-pfwh" />
+  </ItemGroup>
+
+  <!-- Guard: a missing contract assembly otherwise surfaces as a few hundred CS0246s. -->
+  <Target Name="ValidateDnSpyContracts" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <_MissingDnSpyContract Include="@(Reference)"
+                             Condition="'%(Reference.DnSpyContract)' == 'true' And !Exists('%(Reference.HintPath)')" />
+    </ItemGroup>
+    <Error Condition="'@(_MissingDnSpyContract)' != ''"
+           Text="dnSpy contract assemblies not found in '$(DnSpyContractsDir)': @(_MissingDnSpyContract->'%(Identity).dll', ', '). If you are building a clone, these ship in lib/ - restore them with 'git checkout -- lib' or re-clone. If you pointed DnSpyContractsDir / DnSpyBinDir / DNSPY_BIN_DIR at a dnSpy installation, check that it is the 'bin' directory of a dnSpyEx 5.0.0.0 or newer build." />
+  </Target>
+
+  <!-- 'dotnet build -t:Package' stages exactly the files an end user copies into
+       <dnSpy>\bin\Extensions\dnSpy-automate\ - the extension plus the NetMQ closure and the
+       .deps.json dnSpy's extension loader uses to resolve it. Everything else in the build
+       output (satellite resource folders, the .pdb) is deliberately left behind. -->
+  <Target Name="Package" DependsOnTargets="Build">
+    <ItemGroup>
+      <_PackageFile Include="$(TargetDir)*.dll" />
+      <_PackageFile Include="$(TargetDir)$(AssemblyName).deps.json" />
+    </ItemGroup>
+    <RemoveDir Directories="$(PackageStageDir)" />
+    <Copy SourceFiles="@(_PackageFile)" DestinationFolder="$(PackageStageDir)" />
+    <Message Importance="high" Text="Packaged @(_PackageFile->Count()) files into $(PackageStageDir)" />
+  </Target>
+
+</Project>

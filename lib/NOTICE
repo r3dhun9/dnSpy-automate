@@ -1,0 +1,31 @@
+The .dll files in this directory are NOT part of dnSpy-automate and are NOT covered by
+the MIT license in ../LICENSE.
+
+They are unmodified binaries taken from the dnSpyEx v6.6.0 release (dnSpy-net-win64.zip,
+bin/), vendored here for one reason only: so that this project can be compiled without a
+dnSpy installation present.
+
+    Project:  https://github.com/dnSpyEx/dnSpy
+    Release:  https://github.com/dnSpyEx/dnSpy/releases/tag/v6.6.0
+    License:  GNU General Public License v3.0
+              https://github.com/dnSpyEx/dnSpy/blob/master/LICENSE.txt
+
+Corresponding source for these binaries is available from the project URL above.
+
+    size       sha256                                                            file
+      978,432  1b883b87bb52dad1b1ef677ad7e80e288df2cdf913c791f7bd3072a36e2839e2  dnSpy.Contracts.DnSpy.dll
+      252,416  871b92de3f8dbde673c2a97a0644711acc200b36f5047479e379cc1b2877e56d  dnSpy.Contracts.Logic.dll
+      141,312  ae4959c879de0542a3da9fc41038799ab8b3f5a49a9b196aa93592f6a170121d  dnSpy.Contracts.Debugger.dll
+       54,784  d646e9daa14f6013bbdcaa3527b14e71da5a046e03a50cfd067d77f493bc0637  dnSpy.Contracts.Debugger.DotNet.dll
+       10,752  a719d08143b03e327eb98618e209efdfd790ec611a91f89429d85e647f36e755  dnSpy.Contracts.Debugger.DotNet.CorDebug.dll
+
+All five are AssemblyVersion 6.6.0.0.
+
+These are compile-time references only. Every <Reference> to them in
+dnSpy-automate.csproj sets Private=false, so they are never copied into the build output
+and never shipped with the extension: at run time the extension binds to the copies dnSpy
+itself has already loaded. Nothing in this directory is redistributed by an installed
+dnSpy-automate.
+
+To compile against a different dnSpy version instead of these, point DNSPY_BIN_DIR (or
+-p:DnSpyContractsDir=...) at that dnSpy's bin directory; lib/ is then ignored.

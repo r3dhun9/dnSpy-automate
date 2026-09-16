@@ -1,0 +1,30 @@
+# Build output
+bin/
+obj/
+artifacts/
+*.binlog
+msbuild.log
+
+# NuGet
+packages/
+*.nupkg
+
+# IDE / editor state
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# Local machine overrides (e.g. a private DnSpyBinDir)
+Directory.Build.props.user
+*.props.user
+
+# OS junk
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Agent
+.opencode
+.claude
